@@ -10,8 +10,10 @@
 
 
 __global__ void vector_add(float *out, float *a, float *b, int n) {
-    for(int i = 0; i < n; i ++){
-        out[i] = a[i] + b[i];
+    int tid = global_thread_id() ;
+    int stride = block_size();
+    for(int i = tid; i < n; i += stride){
+       out[i] = a[i] + b[i];
     }
 }
 int main(){
@@ -39,17 +41,18 @@ int main(){
     gpuErrchk(cudaMemcpy(d_b, b, sizeof(float) * N, cudaMemcpyHostToDevice));
 
     // Executing kernel 
+    int block_size = 256;
     int grid_size = 1;
-    int  block_size = 1;
     double start = get_time();
+
     vector_add<<<grid_size,block_size>>>(d_out, d_a, d_b, N);
+    // Transfer data back to host memory
     cudaDeviceSynchronize();
 
     double end = get_time();
 
-    // Transfer data back to host memory
-    gpuErrchk(cudaMemcpy(out, d_out, sizeof(float) * N, cudaMemcpyDeviceToHost));
 
+    gpuErrchk(cudaMemcpy(out, d_out, sizeof(float) * N, cudaMemcpyDeviceToHost));
 
     // Verification
     for(int i = 0; i < N; i++){
@@ -57,10 +60,11 @@ int main(){
         // printf("out = %f\n", out[i]);
         assert(fabs(out[i] - a[i] - b[i]) < MAX_ERR);
     }
-
     // printf("out[0] = %f\n", out[0]);
+
     auto cost_time = end - start;
-    printf("PASSED, computation time GPU_no_parallel = %f secs\n", cost_time);
+
+    printf("PASSED, computation time GPU_one_grid = %f secs\n", cost_time);
 
     // Deallocate device memory
     gpuErrchk(cudaFree(d_a));

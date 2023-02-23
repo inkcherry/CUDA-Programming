@@ -10,8 +10,9 @@
 
 
 __global__ void vector_add(float *out, float *a, float *b, int n) {
-    for(int i = 0; i < n; i ++){
-        out[i] = a[i] + b[i];
+    int tid = global_thread_id();
+    if(tid<n){
+       out[tid] = a[tid] + b[tid];
     }
 }
 int main(){
@@ -39,9 +40,10 @@ int main(){
     gpuErrchk(cudaMemcpy(d_b, b, sizeof(float) * N, cudaMemcpyHostToDevice));
 
     // Executing kernel 
-    int grid_size = 1;
-    int  block_size = 1;
+    int block_size = 256;
+    int grid_size = ((N + block_size) / block_size);
     double start = get_time();
+
     vector_add<<<grid_size,block_size>>>(d_out, d_a, d_b, N);
     cudaDeviceSynchronize();
 
@@ -50,17 +52,15 @@ int main(){
     // Transfer data back to host memory
     gpuErrchk(cudaMemcpy(out, d_out, sizeof(float) * N, cudaMemcpyDeviceToHost));
 
-
     // Verification
-    for(int i = 0; i < N; i++){
-    
+    for(int i = 0; i < N; i++){    
         // printf("out = %f\n", out[i]);
         assert(fabs(out[i] - a[i] - b[i]) < MAX_ERR);
     }
-
     // printf("out[0] = %f\n", out[0]);
-    auto cost_time = end - start;
-    printf("PASSED, computation time GPU_no_parallel = %f secs\n", cost_time);
+    auto cost_time = end - start ;
+    printf("PASSED, computation time GPU_grids_parallel = %f secs\n", cost_time);
+
 
     // Deallocate device memory
     gpuErrchk(cudaFree(d_a));
