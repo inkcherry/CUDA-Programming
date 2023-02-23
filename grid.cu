@@ -40,11 +40,11 @@ int main(){
     gpuErrchk(cudaMemcpy(d_b, b, sizeof(float) * N, cudaMemcpyHostToDevice));
 
     // Executing kernel 
-    int block_size = 256;
-    int grid_size = ((N + block_size) / block_size);
+    int thread_size = 256;
+    int block_size = ((N + thread_size) / thread_size);
     double start = get_time();
 
-    vector_add<<<grid_size,block_size>>>(d_out, d_a, d_b, N);
+    vector_add<<<block_size,thread_size>>>(d_out, d_a, d_b, N);
     cudaDeviceSynchronize();
 
     double end = get_time();
